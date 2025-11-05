@@ -10,13 +10,15 @@ df_daily = pd.read_csv('daily_data.csv')
 df_hourly = pd.read_csv('hourly_data.csv')
 
 #df_cities
-cols_to_drop_cities = ['rank']
+cols_to_drop_cities = ['rank','population']
 # df_daily
 cols_to_drop_daily = [
     'temperature_2m_max', 'temperature_2m_min',
     'apparent_temperature_max', 'apparent_temperature_min', 'apparent_temperature_mean',
     'sunshine_duration', 'wind_direction_10m_dominant',
-    'shortwave_radiation_sum', 'et0_fao_evapotranspiration'
+    'shortwave_radiation_sum', 'et0_fao_evapotranspiration','sunrise','sunset',
+    'precipitation_sum','precipitation_hours','wind_gusts_10m_max',
+    'temperature_2m_mean','daylight_duration'
 ]
 # df_hourly
 cols_to_drop_hourly = [
@@ -33,7 +35,9 @@ cols_to_drop_hourly = [
     'terrestrial_radiation', 'shortwave_radiation_instant',
     'direct_radiation_instant', 'diffuse_radiation_instant',
     'direct_normal_irradiance_instant', 'global_tilted_irradiance_instant',
-    'terrestrial_radiation_instant'
+    'terrestrial_radiation_instant', 'apparent_temperature','precipitation',
+    'cloud_cover_low','cloud_cover_mid','cloud_cover_high','wind_gusts_10m',
+    'cloud_cover', 'temperature_2m'
 ]
 df_cities.drop(columns=cols_to_drop_cities,inplace=True)
 df_daily.drop(columns=cols_to_drop_daily,inplace=True)
@@ -85,8 +89,6 @@ monthly_weather_stats = df_daily_filtered.groupby(['city_name', 'month_num', 'mo
     rain_prob=('is_rainy', 'mean'),
     snow_prob=('is_snowy', 'mean'),
     fog_prob=('is_foggy', 'mean'),
-    avg_temp=('temperature_2m_mean', 'mean'), 
-    avg_daylight_hours=('daylight_duration', lambda x: x.mean() / 3600), 
     avg_wind_speed=('wind_speed_10m_max', 'mean') 
 ).reset_index()
 
@@ -110,8 +112,6 @@ for city in target_city_names:
                 weather_dict = {
                     'rain_prob': round(row['rain_prob'], 3),
                     'fog_prob': round(row['fog_prob'], 3) if pd.notna(row['fog_prob']) else 0.0,
-                    'avg_temp': round(row['avg_temp'], 1) if pd.notna(row['avg_temp']) else None,
-                    'avg_daylight_hours': round(row['avg_daylight_hours'], 1) if pd.notna(row['avg_daylight_hours']) else None,
                     'avg_wind_speed': round(row['avg_wind_speed'], 1) if pd.notna(row['avg_wind_speed']) else None
                 }
 
@@ -155,8 +155,6 @@ hourly_weather_stats = df_hourly_filtered.groupby(['city_name', 'month_name', 'h
     hourly_rain_prob=('is_rainy_hour', 'mean'),
     hourly_snow_prob=('is_snowy_hour', 'mean'),
     hourly_fog_prob=('is_foggy_hour', 'mean'),
-    avg_hourly_temp=('temperature_2m', 'mean'),
-    avg_hourly_wind=('wind_speed_10m', 'mean'),
     avg_cloud_cover=('cloud_cover', 'mean') # Average cloud cover %
 ).reset_index()
 
@@ -179,9 +177,7 @@ for _,row in hourly_weather_stats.iterrows():
         weather_dict = {
             'rain_prob': round(row['hourly_rain_prob'], 3) if pd.notna(row['hourly_rain_prob']) else 0.0,
             'fog_prob': round(row['hourly_fog_prob'], 3) if pd.notna(row['hourly_fog_prob']) else 0.0,
-            'avg_temp': round(row['avg_hourly_temp'], 1) if pd.notna(row['avg_hourly_temp']) else None,
             'avg_wind': round(row['avg_hourly_wind'], 1) if pd.notna(row['avg_hourly_wind']) else None,
-            'avg_cloud_cover': round(row['avg_cloud_cover'], 1) if pd.notna(row['avg_cloud_cover']) else None
         }
         # Only add snow prob if it's non-zero
         if pd.notna(row['hourly_snow_prob']) and row['hourly_snow_prob'] > 0:
