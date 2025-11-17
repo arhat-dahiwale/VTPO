@@ -155,7 +155,6 @@ hourly_weather_stats = df_hourly_filtered.groupby(['city_name', 'month_name', 'h
     hourly_rain_prob=('is_rainy_hour', 'mean'),
     hourly_snow_prob=('is_snowy_hour', 'mean'),
     hourly_fog_prob=('is_foggy_hour', 'mean'),
-    avg_cloud_cover=('cloud_cover', 'mean') # Average cloud cover %
 ).reset_index()
 
 historical_hourly_weather = {}
@@ -177,7 +176,6 @@ for _,row in hourly_weather_stats.iterrows():
         weather_dict = {
             'rain_prob': round(row['hourly_rain_prob'], 3) if pd.notna(row['hourly_rain_prob']) else 0.0,
             'fog_prob': round(row['hourly_fog_prob'], 3) if pd.notna(row['hourly_fog_prob']) else 0.0,
-            'avg_wind': round(row['avg_hourly_wind'], 1) if pd.notna(row['avg_hourly_wind']) else None,
         }
         # Only add snow prob if it's non-zero
         if pd.notna(row['hourly_snow_prob']) and row['hourly_snow_prob'] > 0:
@@ -1424,6 +1422,64 @@ def validate_and_display_itinerary(final_itinerary:List[OptimizedDay], profile: 
 
     return "ACCEPT", None
 
+import matplotlib.pyplot as plt
+import random
+import string
+
+def plotting(final_itinerary : List[OptimizedDay], profile:TravelerProfile, city_name:str, file_name:str="itinerary_route.png"):
+    print(f"Generating itinerary plot and saving to {file_name}...")
+    plt.figure(figsize=(12,10))
+    all_lats=[]
+    all_longs=[]
+
+    for i,day in enumerate(final_itinerary):
+        if not day.route:
+            continue
+
+        day_color = (random.random(),random.random(),random.random())
+        lats = [place.coordinates[0] for place in day.route]
+        longs = [place.coordinates[1] for place in day.route]
+        all_lats.extend(lats)
+        all_longs.extend(longs)
+
+        label_text = f"Day {i + 1} :"
+
+        for j,place in enumerate(day.route):
+            marker_char = string.ascii_lowercase[j%26]
+            label_text += f"\n    {marker_char} : {place.name}"
+            plt.text(longs[j],lats[j],marker_char,color='black', fontsize=9, fontweight='bold', ha='center', va='center',bbox=dict(boxstyle="circle,pad=0.2", fc='white', ec=day_color, lw=1))
+
+
+        plt.plot(longs,lats,color=day_color, marker='o', linestyle='-',markersize=5,label=label_text)
+        plt.text(longs[0], lats[0], ' S', color=day_color, fontsize=12, fontweight='bold')
+        plt.text(longs[-1], lats[-1], ' E', color=day_color, fontsize=12, fontweight='bold')
+        # for i, place in enumerate(day.route):
+        #    plt.annotate(f"{i+1}. {place.name}", (lons[i], lats[i]), textcoords="offset points", xytext=(0,5), ha='center', fontsize=8)
+
+
+    if all_lats and all_longs:
+        lat_margin = (max(all_lats) - min(all_lats)) * 0.1
+        lon_margin = (max(all_longs) - min(all_longs)) * 0.1
+        lat_margin = lat_margin if lat_margin > 0 else 0.01
+        lon_margin = lon_margin if lon_margin > 0 else 0.01
+
+        plt.ylim(min(all_lats) - lat_margin, max(all_lats) + lat_margin)
+        plt.xlim(min(all_longs) - lon_margin, max(all_longs) + lon_margin)
+
+    plt.xlabel("Longitude")
+    plt.ylabel("Latitude")
+    plt.title(f"Optimized Itinerary for {city_name}\n({profile.pace} pace, {profile.timing} timing)")
+    plt.legend(bbox_to_anchor=(1.02, 1), loc='upper left', borderaxespad=0.)
+    plt.grid(True)
+    plt.tight_layout()
+
+    try:
+        plt.savefig(file_name)
+        print(f"Successfully saved plot to {file_name}")
+    except Exception as e:
+        print(f"Error saving plot: {e}")
+
+
 def main():
     selected_city = get_city_selection(target_city_names)
     master_selected_places = get_poi_selection(selected_city)
@@ -1519,6 +1575,7 @@ def main():
         action, data = validate_and_display_itinerary(final_sequenced_itinerary, profile, budget, selected_city,city_data, month_weather, hourly_weather_db, month_name)
         if action == "ACCEPT":
             print("\nEnjoy your trip!")
+            plotting(final_sequenced_itinerary,profile, selected_city)
             break 
         elif action == "REMODIFY":
             if profile.pace == "fast":
