@@ -1,9 +1,10 @@
 """
             SECTION : 1 = Defining the dataset and the database
+
 """
 import numpy as np
 import pandas as pd
-import json
+# import json
 
 df_cities = pd.read_csv('cities.csv')
 df_daily = pd.read_csv('daily_data.csv')
@@ -76,8 +77,11 @@ df_hourly_filtered = df_hourly[df_hourly['city_name'].isin(target_city_names)].c
              df_daily for historical weather data
 """
 
-df_daily_filtered['datetime'] = pd.to_datetime(df_daily_filtered['datetime'],errors='coerce')
-df_daily_filtered.dropna(subset=['datetime'],inplace=True)
+try:
+    df_daily_filtered['datetime'] = pd.to_datetime(df_daily_filtered['datetime'],errors='coerce')
+    df_daily_filtered.dropna(subset=['datetime'],inplace=True)
+except Exception as e:
+    print(f"Exception processing the df_daily_filtered :\n{e}")
 
 df_daily_filtered['month_num'] = df_daily_filtered['datetime'].dt.month
 df_daily_filtered['month_name'] = df_daily_filtered['datetime'].dt.month_name() 
@@ -570,6 +574,17 @@ SEASONAL_TOURISM_FACTORS = {
 
 """
             SECTION 2 = defining the traveler profile for personalization
+            1) traveler profile class 
+            2) _get_validated_input - gets validated input
+            3) _get_multi_select_input - gets the multi select input
+            4) get_city_selection - gets the city where the user wants to visit
+            5) get_poi_selection - gets the places to visit in a city
+            6) get_traveler_profile - understand the user based on the inputs and create a temporary travel profile
+            7) get_trip_constraints - get the trip constraints from the user
+            8) calculate_haversine_distance - calculated the distance between 2 places
+            9) calculate_travel_time - calculation of travel time using all the factors
+
+
 """
 
 
@@ -862,6 +877,16 @@ def calculate_travel_time(place_from: Place, place_to: Place, city_name:str, cit
 
 """
             SECTION 3 = optimization engine 
+            1) find_cluster_center (helper) - finds the center of the cluster
+            2) custom_greedy_clustering_heuristic - clusters the pois into days
+            3) find_worst_place (helper) - finds the farthest place
+            4) calculate_cluster_distance (helper) - calculates cluster distance
+            5) heuristic_cascade_balance_clusters - moves the extra to nearby clusters
+            6) OptimizedDay dataclass
+            7) nearest_neighbor_optimized_day_route - finds the route within a single cluster/day
+            8) ACO_Solver class 
+            9) optimize_trip_sequence - utilizes ACO to find the route for days
+
 """
 
 def find_cluster_center(cluster: List[Place]) -> Tuple[float, float]:
@@ -879,7 +904,7 @@ def custome_greedy_clustering_heuristic(selected_places : List[Place], num_days:
     if len(selected_places) < num_days:
         print("Fewer places than available days, assigning each place to one day")
         return [[place] for place in selected_places]
-    
+
     unassigned_places = list(selected_places)
     clusters = [[] for _ in range(num_days)]
 
@@ -941,8 +966,8 @@ def find_worst_place(cluster: List[Place]) -> Place:
             max_dist = dist
             farthest_place = place
 
-    
     return farthest_place
+
 
 def calculate_cluster_distance(clusterA : List[Place], clusterB:List[Place]) -> float:
     return calculate_haversine_distance(find_cluster_center(clusterA), find_cluster_center(clusterB))
@@ -1063,10 +1088,10 @@ def nearest_neighbor_optimized_day_route(day_cluster: List[Place], day_num:int,p
     if not start_place:
         if general_places:
             start_place = general_places.pop(0)
-        elif sunset_candidates:
-            start_place = sunset_candidates.pop(0) 
         elif sunrise_candidates:
             start_place = sunrise_candidates.pop(0) 
+        elif sunset_candidates:
+            start_place = sunset_candidates.pop(0) 
         elif nightlife_candidates:
             start_place = nightlife_candidates.pop(0) 
     
@@ -1280,6 +1305,9 @@ def optimize_trip_sequence(optimized_days: List[OptimizedDay], profile: Traveler
 
 """
             SECTION 4 = final validation and remodification
+            1) validate_display_itinerary - takes care of the validation
+            2) plotting - used to plot the route
+            3) main - the main function
 """
 
 def validate_and_display_itinerary(final_itinerary:List[OptimizedDay], profile: TravelerProfile, budget:int, city_name:str, city_data:pd.Series, month_weather:dict,hourly_weather_db:dict,month_name:str):
