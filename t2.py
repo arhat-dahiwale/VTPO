@@ -181,7 +181,7 @@ for _,row in hourly_weather_stats.iterrows():
             'rain_prob': round(row['hourly_rain_prob'], 3) if pd.notna(row['hourly_rain_prob']) else 0.0,
             'fog_prob': round(row['hourly_fog_prob'], 3) if pd.notna(row['hourly_fog_prob']) else 0.0,
         }
-        # Only add snow prob if it's non-zero
+        # only add snow prob if it's non-zero
         if pd.notna(row['hourly_snow_prob']) and row['hourly_snow_prob'] > 0:
             weather_dict['snow_prob'] = round(row['hourly_snow_prob'], 3)
             
@@ -910,24 +910,28 @@ def custome_greedy_clustering_heuristic(selected_places : List[Place], num_days:
 
     first_place = unassigned_places.pop(0)
     clusters[0].append(first_place)
-
-    last_chosen_place = first_place
+    chosen_seeds = [first_place]
+    
 
     for i in range(1,num_days):
         farthest_place = None
-        max_distance = -1
+        max_of_min_distance = -1
 
         for place in unassigned_places:
-            distance = calculate_haversine_distance(place.coordinates, last_chosen_place.coordinates)
+            min_distance_to_seeds = min(
+                calculate_haversine_distance(place.coordinates, seed.coordinates)
+                for seed in chosen_seeds
+            )
 
-            if distance > max_distance:
-                max_distance = distance
+            if min_distance_to_seeds > max_of_min_distance:
+                max_of_min_distance = min_distance_to_seeds
                 farthest_place = place
         
         clusters[i].append(farthest_place)
         unassigned_places.remove(farthest_place)
+        chosen_seeds.append(farthest_place)
 
-        last_chosen_place = farthest_place
+        
     
     print("Seeds chosen for each day:")
     for i, cluster in enumerate(clusters):
